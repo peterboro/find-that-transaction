@@ -1,0 +1,8 @@
+{
+  "/page": "app/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/api/user/route": "app/api/user/route.js",
+  "/api/transactions/route": "app/api/transactions/route.js",
+  "/api/parse-statement/route": "app/api/parse-statement/route.js",
+  "/api/payments/initialize/route": "app/api/payments/initialize/route.js"
+}

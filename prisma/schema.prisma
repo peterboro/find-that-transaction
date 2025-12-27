@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  clerkId         String   @unique
+  email           String   @unique
+  firstName       String?
+  lastName        String?
+  imageUrl        String?
+  
+  // Subscription
+  plan            Plan     @default(FREE)
+  subscriptionId  String?  // Paystack subscription ID
+  customerId      String?  // Paystack customer ID
+  planExpiresAt   DateTime?
+  
+  // Usage tracking
+  statementsUsed  Int      @default(0)
+  statementsLimit Int      @default(5)
+  
+  // Relations
+  statements      Statement[]
+  transactions    Transaction[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+model Statement {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileUrl         String   // Cloudinary URL
+  filePublicId    String   // Cloudinary public ID for deletion
+  fileSize        Int
+  pageCount       Int      @default(0)
+  
+  bankName        String?
+  accountNumber   String?
+  statementPeriod String?
+  
+  status          StatementStatus @default(PENDING)
+  errorMessage    String?
+  
+  transactions    Transaction[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+}
+
+enum StatementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  statementId     String
+  statement       Statement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  
+  date            String
+  description     String
+  debit           Float?
+  credit          Float?
+  balance         Float?
+  category        String?
+  
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([statementId])
+  @@index([description])
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  clerkId         String
+  
+  paystackRef     String   @unique
+  amount          Int      // Amount in kobo/cents
+  currency        String   @default("KES")
+  status          PaymentStatus @default(PENDING)
+  plan            Plan
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clerkId])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
