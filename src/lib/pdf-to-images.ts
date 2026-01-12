@@ -52,6 +52,11 @@ except Exception as e:
       return JSON.parse(jsonStr)
     }
     
+    // Check for password-related errors
+    if (stdout.includes('Incorrect password') || stdout.includes('password') || stdout.includes('encrypted')) {
+      throw new Error('This PDF is password-protected or encrypted. Please remove the password protection from your PDF before uploading, or use a PDF without password protection.')
+    }
+    
     throw new Error(`PDF conversion failed: ${stdout}`)
   } finally {
     // Cleanup temp files

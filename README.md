@@ -114,14 +114,16 @@ Open http://localhost:3000
 
 ### Vercel (Recommended)
 
-1. Push to GitHub
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for a complete step-by-step deployment guide.
+
+**Quick Steps:**
+1. Push code to GitHub
 2. Import to Vercel
-3. Add environment variables
-4. Deploy
+3. Add all environment variables (see DEPLOYMENT.md for full list)
+4. Configure webhooks
+5. Deploy
 
-### Environment Variables in Production
-
-Set all variables from `.env.example` in your hosting platform.
+**⚠️ Important:** The current PDF conversion uses Python, which won't work on Vercel serverless functions. You'll need to implement a Node.js alternative or use an external service. See DEPLOYMENT.md for details.
 
 ## Webhooks Setup
 
