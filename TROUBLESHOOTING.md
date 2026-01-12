@@ -6,36 +6,63 @@
 
 **Error:** `500: INTERNAL_SERVER_ERROR Code: MIDDLEWARE_INVOCATION_FAILED`
 
+**This error occurs at runtime, not during build. The build logs show warnings but the build succeeds.**
+
 **Causes:**
-- Missing Clerk environment variables
+- Missing Clerk environment variables in Vercel
 - Incorrect Clerk API keys
-- Middleware trying to access resources not available in Edge runtime
+- Keys not enabled for the correct environment (Production/Preview/Development)
 
-**Solutions:**
+**Step-by-Step Fix:**
 
-1. **Verify Clerk Environment Variables in Vercel:**
-   - Go to Vercel Dashboard → Your Project → Settings → Environment Variables
-   - Ensure these are set:
-     - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (starts with `pk_`)
-     - `CLERK_SECRET_KEY` (starts with `sk_`)
-   - Make sure they're set for **Production**, **Preview**, and **Development** environments
+1. **Go to Vercel Dashboard:**
+   - Navigate to your project: https://vercel.com/dashboard
+   - Click on your project name
+   - Go to **Settings** → **Environment Variables**
 
-2. **Check Clerk Keys:**
+2. **Verify Clerk Variables Exist:**
+   - Look for `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - Look for `CLERK_SECRET_KEY`
+   - If they don't exist, add them (see step 3)
+   - If they exist, check they're enabled for **Production** environment
+
+3. **Get Your Clerk Keys:**
    - Go to https://dashboard.clerk.com
    - Select your application
-   - Go to **API Keys** section
-   - Copy the correct keys:
-     - **Publishable Key** → `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-     - **Secret Key** → `CLERK_SECRET_KEY`
-   - **Important:** Use production keys for production deployment, not test keys
+   - Go to **API Keys** section (or **Keys** in sidebar)
+   - You'll see:
+     - **Publishable Key** (starts with `pk_`)
+     - **Secret Key** (starts with `sk_`)
+   - **IMPORTANT:** For production, use keys that start with:
+     - `pk_live_...` (NOT `pk_test_...`)
+     - `sk_live_...` (NOT `sk_test_...`)
 
-3. **Verify Key Format:**
-   - Publishable key should start with `pk_live_` (production) or `pk_test_` (development)
-   - Secret key should start with `sk_live_` (production) or `sk_test_` (development)
+4. **Add/Update in Vercel:**
+   - Click **Add New** or edit existing variable
+   - Add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` with your publishable key
+   - Add `CLERK_SECRET_KEY` with your secret key
+   - **CRITICAL:** Check the boxes for:
+     - ✅ Production
+     - ✅ Preview  
+     - ✅ Development
+   - Click **Save**
 
-4. **Redeploy After Adding Variables:**
-   - After adding/updating environment variables, you must redeploy
-   - Go to Deployments → Click the three dots → Redeploy
+5. **Redeploy:**
+   - Go to **Deployments** tab
+   - Click the three dots (⋯) on the latest deployment
+   - Click **Redeploy**
+   - Or push a new commit to trigger automatic redeploy
+
+6. **Verify After Redeploy:**
+   - Wait for deployment to complete
+   - Visit your site URL
+   - The middleware error should be resolved
+
+**Common Mistakes:**
+- ❌ Using test keys (`pk_test_`, `sk_test_`) in production
+- ❌ Not enabling variables for Production environment
+- ❌ Forgetting to redeploy after adding variables
+- ❌ Typos in variable names (check for exact spelling)
 
 ### 2. Database Connection Errors
 
