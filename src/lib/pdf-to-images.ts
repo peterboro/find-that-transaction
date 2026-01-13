@@ -6,7 +6,7 @@ import os from 'os'
 
 const execAsync = promisify(exec)
 
-export async function convertPdfToImages(pdfBuffer: Buffer, maxPages = 20): Promise<string[]> {
+export async function convertPdfToImages(pdfBuffer: Buffer, maxPages = 20, password?: string): Promise<string[]> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-'))
   const pdfPath = path.join(tempDir, 'input.pdf')
   
@@ -14,6 +14,7 @@ export async function convertPdfToImages(pdfBuffer: Buffer, maxPages = 20): Prom
     await fs.writeFile(pdfPath, pdfBuffer)
     
     // Use Python with pdf2image
+    // Properly escape password for Python string (handle quotes, backslashes, newlines)
     const pythonScript = `
 import sys, json, base64, os
 try:
@@ -22,7 +23,14 @@ except ImportError:
     print("INSTALL_NEEDED")
     sys.exit(0)
 try:
-    images = convert_from_path("${pdfPath.replace(/\\/g, '\\\\')}", dpi=150, first_page=1, last_page=${maxPages})
+    pdf_path = "${pdfPath.replace(/\\/g, '\\\\')}"
+    ${password ? `password = ${JSON.stringify(password)}` : ''}
+    convert_params = {
+        "dpi": 150,
+        "first_page": 1,
+        "last_page": ${maxPages}${password ? ',\n        "userpw": password' : ''}
+    }
+    images = convert_from_path(pdf_path, **convert_params)
     result = []
     for i, img in enumerate(images):
         img_path = os.path.join("${tempDir.replace(/\\/g, '\\\\')}", f"page_{i}.png")
@@ -53,8 +61,11 @@ except Exception as e:
     }
     
     // Check for password-related errors
-    if (stdout.includes('Incorrect password') || stdout.includes('password') || stdout.includes('encrypted')) {
-      throw new Error('This PDF is password-protected or encrypted. Please remove the password protection from your PDF before uploading, or use a PDF without password protection.')
+    if (stdout.includes('Incorrect password') || (stdout.includes('password') && stdout.includes('incorrect'))) {
+      throw new Error('PASSWORD_REQUIRED:Incorrect password. Please provide the correct password.')
+    }
+    if (stdout.includes('encrypted') && !password) {
+      throw new Error('PASSWORD_REQUIRED:This PDF is password-protected. Please provide the password.')
     }
     
     throw new Error(`PDF conversion failed: ${stdout}`)

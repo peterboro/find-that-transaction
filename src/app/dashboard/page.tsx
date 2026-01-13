@@ -52,6 +52,9 @@ export default function Dashboard() {
   const [userData, setUserData] = useState<UserData | null>(null)
   const [totals, setTotals] = useState({ debit: 0, credit: 0 })
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [pdfPassword, setPdfPassword] = useState('')
+  const [showPasswordInput, setShowPasswordInput] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
 
   // Check payment status from URL
   useEffect(() => {
@@ -100,7 +103,7 @@ export default function Dashboard() {
     fetchTransactions(term)
   }, [fetchTransactions])
 
-  const handleFile = async (file: File) => {
+  const handleFile = async (file: File, password?: string) => {
     if (!file || file.type !== 'application/pdf') {
       setError('Please upload a PDF file')
       return
@@ -119,6 +122,9 @@ export default function Dashboard() {
 
     const formData = new FormData()
     formData.append('file', file)
+    if (password) {
+      formData.append('password', password)
+    }
 
     try {
       const response = await fetch('/api/parse-statement', {
@@ -135,8 +141,20 @@ export default function Dashboard() {
         const userRes = await fetch('/api/user')
         const userData = await userRes.json()
         if (userData.user) setUserData(userData.user)
+        // Reset password state
+        setPdfPassword('')
+        setShowPasswordInput(false)
+        setPendingFile(null)
       } else {
-        setError(data.message || 'Failed to parse statement')
+        // Check if password is required (status 400 or message contains PASSWORD_REQUIRED)
+        if ((response.status === 400 || data.message?.includes('PASSWORD_REQUIRED')) && data.message) {
+          const message = data.message.replace('PASSWORD_REQUIRED:', '')
+          setError(message)
+          setShowPasswordInput(true)
+          setPendingFile(file)
+        } else {
+          setError(data.message || 'Failed to parse statement')
+        }
       }
     } catch (err) {
       setError('Failed to parse statement. Please try again.')
@@ -145,12 +163,18 @@ export default function Dashboard() {
     }
   }
 
+  const handleRetryWithPassword = () => {
+    if (pendingFile && pdfPassword) {
+      handleFile(pendingFile, pdfPassword)
+    }
+  }
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) handleFile(file)
-  }, [userData])
+    if (file) handleFile(file, pdfPassword || undefined)
+  }, [userData, pdfPassword])
 
   const handleUpgrade = async (plan: 'PRO' | 'BUSINESS') => {
     try {
@@ -286,6 +310,51 @@ export default function Dashboard() {
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
               </label>
+              
+              {/* Optional Password Input */}
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <p className="text-gray-400 text-sm mb-2">PDF Password (if protected)</p>
+                <div className="flex gap-2 max-w-md mx-auto">
+                  <input
+                    type="password"
+                    value={pdfPassword}
+                    onChange={(e) => setPdfPassword(e.target.value)}
+                    placeholder="Enter PDF password (optional)"
+                    className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <p className="text-gray-500 text-xs mt-2">Leave empty if your PDF is not password-protected</p>
+              </div>
+
+              {/* Password Required Error with Retry */}
+              {showPasswordInput && pendingFile && (
+                <div className="mt-6 pt-6 border-t border-red-500/20">
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                    <p className="text-red-400 text-sm mb-3">This PDF requires a password. Please enter it below:</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={pdfPassword}
+                        onChange={(e) => setPdfPassword(e.target.value)}
+                        placeholder="Enter PDF password"
+                        className="flex-1 px-4 py-2 bg-gray-800 border border-red-500/30 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && pdfPassword) {
+                            handleRetryWithPassword()
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleRetryWithPassword}
+                        disabled={!pdfPassword || isLoading}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-medium transition"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

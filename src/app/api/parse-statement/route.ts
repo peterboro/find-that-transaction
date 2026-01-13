@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
+    const password = formData.get('password') as string | null
 
     if (!file || file.type !== 'application/pdf') {
       return NextResponse.json(
@@ -65,8 +66,8 @@ export async function POST(request: NextRequest) {
     })
 
     try {
-      // Convert PDF to images
-      const images = await convertPdfToImages(buffer)
+      // Convert PDF to images (with optional password)
+      const images = await convertPdfToImages(buffer, 20, password || undefined)
       
       // Update page count
       await db.statement.update({
@@ -113,6 +114,9 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (parseError: any) {
+      // Check if password is required
+      const isPasswordError = parseError.message?.includes('PASSWORD_REQUIRED')
+      
       // Update statement with error
       await db.statement.update({
         where: { id: statement.id },
@@ -121,6 +125,14 @@ export async function POST(request: NextRequest) {
           errorMessage: parseError.message,
         },
       })
+
+      // Return password error with special status code
+      if (isPasswordError) {
+        return NextResponse.json(
+          { error: 'Password required', message: parseError.message },
+          { status: 400 }
+        )
+      }
 
       return NextResponse.json(
         { error: 'Parse failed', message: parseError.message },
